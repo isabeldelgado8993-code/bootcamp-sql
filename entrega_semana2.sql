@@ -1,5 +1,5 @@
 -- ======================================
--- ENTREGA WEEK 2 — TECHSTORE INVENTARIO
+-- ENTREGA SEMANA 2 — TECHSTORE INVENTARIO
 -- Nombre: Isabel Delgado  |  Fecha: 08/06/2026
 -- ======================================
 
