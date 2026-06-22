@@ -70,7 +70,7 @@ COMMIT;
 </details>
 
 <details>
-<summary>🏛️ Semana 3: Proyecto BiblioTech (Relaciones entre Tablas y Diseño Relacional) <em>[Haz clic para expandir detalles]</em></summary>
+<summary>🏛️ <b>Semana 3: Proyecto BiblioTech (Relaciones entre Tablas y Diseño Relacional)</b> <i>[Haz clic para expandir detalles]</i></summary>
 
 ### 📝 Descripción del Proyecto
 Diseño y construcción del sistema de gestión completo para BiblioTech, una biblioteca pública en proceso de digitalización. El sistema gestiona un catálogo de libros con múltiples autores, categorías, usuarios con membresías, préstamos activos y devoluciones con multas. Incluye diagrama ERD, integridad referencial y operaciones transaccionales.
