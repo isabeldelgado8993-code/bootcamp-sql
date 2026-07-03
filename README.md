@@ -69,5 +69,51 @@ COMMIT;
 *   **Revenue por Categoría:** Consolidación de ingresos de la tienda interconectando tablas mediante sentencias `JOIN` junto a funciones de agregación (`SUM`, `COUNT`) agrupadas por departamento de negocio.
 </details>
 
+<details>
+<summary>🏛️ <b>Semana 3: Proyecto BiblioTech (Relaciones entre Tablas y Diseño Relacional)</b> <i>[Haz clic para expandir detalles]</i></summary>
+
+### 📝 Descripción del Proyecto
+Diseño y construcción del sistema de gestión completo para BiblioTech, una biblioteca pública en proceso de digitalización. El sistema gestiona un catálogo de libros con múltiples autores, categorías, usuarios con membresías, préstamos activos y devoluciones con multas. Incluye diagrama ERD, integridad referencial y operaciones transaccionales.
+
+### 🧠 Conceptos Aplicados y Estructura
+- **Diseño Relacional (ERD):** Modelado previo en dbdiagram.io con 6 entidades, identificación de cardinalidades (1:N, N:M) y decisión de ubicación de claves foráneas antes de escribir una sola línea de SQL.
+- **Integridad Referencial (DDL):** Declaración de FOREIGN KEY con políticas ON DELETE diferenciadas: `SET NULL` para categorías, `RESTRICT` para préstamos y `CASCADE` para la tabla de unión N:M.
+- **Relación N:M con tabla pivote:** Implementación de `book_authors` con PRIMARY KEY compuesta `(book_id, author_id)` para modelar libros co-escritos sin duplicar datos.
+- **Constraints deterministas (CHECK):** Validación de rangos fijos (`publication_year BETWEEN 1450 AND 2100`, `price > 0`, `stock >= 0`) evitando funciones de fecha dinámica no permitidas en CHECK.
+- **Transacciones multi-tabla (ACID):** Operaciones atómicas de préstamo y devolución con `START TRANSACTION / COMMIT`.
+
+### 💻 Consulta Destacada de la Semana (Transacción de Devolución)
+```sql
+START TRANSACTION;
+
+-- Calcular multa: $2.50 por día de retraso
+SET @days_late = (SELECT DATEDIFF(CURDATE(), due_date) FROM loans WHERE id = 6);
+SET @fine = GREATEST(0, @days_late * 2.50);
+
+-- Marcar como devuelto y aplicar multa
+UPDATE loans SET return_date = CURDATE(), fine = @fine WHERE id = 6;
+
+-- Restituir el ejemplar al inventario
+UPDATE books SET stock = stock + 1
+WHERE id = (SELECT book_id FROM loans WHERE id = 6);
+
+COMMIT;
+```
+
+### 📐 Decisiones de Ingeniería de Datos Adoptadas
+- **Política ON DELETE por contexto:** `SET NULL` en `books.category_id`, `RESTRICT` en `loans`, `CASCADE` en `book_authors`.
+- **ENUM para listas cerradas:** `ENUM('basic', 'premium', 'vip')` en `users.membership_type` en lugar de VARCHAR + CHECK.
+- **Identificadores en ASCII puro:** Nombres de tablas y columnas sin acentos mientras los datos sí conservan acentos (García Márquez).
+
+### 🎁 Bonus implementados (+15%)
+- Tabla `reviews` con `CHECK (rating BETWEEN 1 AND 5)` y `UNIQUE (user_id, book_id)`.
+- Trigger `tr_price_audit` que registra automáticamente cada cambio de precio.
+- Vista `available_books` que cruza 4 tablas y filtra libros con stock disponible.
+
+### 📊 ERD del Sistema
+![ERD BiblioTech](erd_week3.png)
+
+</details>
+
 ---
 
