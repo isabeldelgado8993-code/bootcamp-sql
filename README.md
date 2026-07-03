@@ -115,5 +115,43 @@ COMMIT;
 
 </details>
 
----
+<details>
+<summary>🎓 <b>Semana 4: Proyecto TechMaster University (JOINs)</b> <i>[Haz clic para expandir detalles]</i></summary>
 
+### 📝 Descripción del Proyecto
+Diseño y explotación de la base de datos de **TechMaster University**, un sistema académico con departamentos, profesores, estudiantes, cursos e inscripciones. El proyecto cubre los 5 tipos de JOIN sobre un dataset con casos reales de datos incompletos: profesores sin cursos asignados, cursos sin profesor y estudiantes sin ninguna inscripción, resueltos con 15 consultas de negocio.
+
+### 🧠 Conceptos Aplicados y Estructura
+- **INNER JOIN:** unión de tablas por FK=PK, quedándose solo con las filas que tienen pareja en ambos lados.
+- **LEFT JOIN + patrón de huérfanos:** `LEFT JOIN ... WHERE tabla_derecha.id IS NULL` para detectar filas sin correspondencia (profesores sin cursos, cursos sin profesor).
+- **Gotcha ON vs WHERE:** demostración en vivo de cómo un filtro sobre la tabla derecha en `WHERE` en vez de `ON` convierte silenciosamente un LEFT JOIN en un INNER JOIN.
+- **SELF JOIN:** relación recursiva `professors.manager_id → professors.id` para modelar la jerarquía profesor-jefe, con desambiguación mediante alias (`p1`, `p2`) y condición `p1.id < p2.id` para evitar duplicados y auto-pares.
+- **CROSS JOIN:** producto cartesiano legítimo para generar todas las combinaciones posibles estudiante-curso.
+- **JOINs encadenados (N:M):** cruce de hasta 5 tablas a través de la tabla puente `enrollments`, usando `COUNT(DISTINCT ...)` para evitar conteos inflados por el cruce múltiple.
+
+### 💻 Consulta Destacada de la Semana (Reporte Ejecutivo por Departamento)
+```sql
+SELECT
+    d.name AS department,
+    COUNT(DISTINCT p.id) AS num_professors,
+    COUNT(DISTINCT c.id) AS num_courses,
+    COUNT(DISTINCT e.student_id) AS num_students
+FROM departments d
+LEFT JOIN professors p ON d.id = p.department_id
+LEFT JOIN courses c ON d.id = c.department_id
+LEFT JOIN enrollments e ON c.id = e.course_id
+GROUP BY d.id, d.name
+ORDER BY d.name;
+```
+
+### 📐 Decisiones de Ingeniería de Datos Adoptadas
+- **SELF FK para jerarquías:** `manager_id` referenciando a `professors.id` en lugar de una tabla separada de jefaturas, evitando redundancia estructural.
+- **LEFT JOIN por defecto en reportes agregados:** cualquier consulta de tipo "para cada X" (departamento, estudiante) usa LEFT JOIN para no perder entidades sin actividad relacionada.
+- **COUNT(DISTINCT) en encadenados multi-tabla:** necesario en cualquier query que cruce 3+ tablas desde un mismo punto, ya que el JOIN multiplica filas antes de agrupar.
+
+### 📊 ERD del Sistema
+![ERD TechMaster University](erd_semana4.png)
+
+</details>
+
+---
