@@ -153,5 +153,71 @@ ORDER BY d.name;
 ![ERD TechMaster University](erd_semana4.png)
 
 </details>
+<details>
+<summary>📊 <b>Semana 5: Proyecto TechMart Analytics (Agregaciones y Agrupamiento)</b> <i>[Haz clic para expandir detalles]</i></summary>
 
+### 📝 Descripción del Proyecto
+Dashboard ejecutivo completo para **TechMart Analytics**, un e-commerce con 5 categorías, 24 productos, 20 clientes y 50 ventas en 4 meses. El proyecto produce 14 reportes analíticos listos para presentar a nivel C-suite, cubriendo desde métricas básicas hasta KPIs ejecutivos con cálculo de márgenes, Pareto y crecimiento mensual.
+
+### 🧠 Conceptos Aplicados y Estructura
+- **Funciones de agregación:** `COUNT(*)`, `COUNT(DISTINCT)`, `SUM`, `AVG`, `MIN`, `MAX` aplicadas sobre grupos y expresiones calculadas (`cantidad * precio_unitario * (1 - descuento/100)`).
+- **GROUP BY:** Agrupamiento por una y múltiples columnas. Regla fundamental: toda columna en SELECT debe estar en GROUP BY o ser agregación.
+- **HAVING:** Filtrado de grupos después de agregar. Diferencia clave con WHERE: WHERE filtra filas antes de agrupar, HAVING filtra grupos después.
+- **Funciones escalares combinadas:** `ROUND`, `FORMAT`, `CONCAT`, `DATE_FORMAT`, `DATEDIFF`, `COALESCE`, `NULLIF` aplicadas sobre resultados de agregación.
+- **CASE WHEN para rangos dinámicos:** Clasificación de descuentos y segmentos de precio sin normalizar datos adicionales.
+- **Subconsultas en WHERE y SELECT:** Cálculo de stock promedio y porcentajes sobre el total global.
+- **Self-join para crecimiento mensual:** Comparación mes a mes sin window functions, uniendo dos subconsultas de revenue por periodo desplazadas un mes.
+
+### 💻 Consulta Destacada de la Semana (Margen de Ganancia por Categoría)
+```sql
+SELECT
+    c.nombre AS categoria,
+    CONCAT('$', FORMAT(SUM(v.cantidad * v.precio_unitario * (1 - v.descuento/100)), 2)) AS revenue,
+    CONCAT('$', FORMAT(SUM(v.cantidad * p.costo), 2)) AS costo,
+    CONCAT('$', FORMAT(
+        SUM(v.cantidad * v.precio_unitario * (1 - v.descuento/100))
+        - SUM(v.cantidad * p.costo), 2
+    )) AS ganancia,
+    CONCAT(ROUND(
+        100.0 *
+        (SUM(v.cantidad * v.precio_unitario * (1 - v.descuento/100)) - SUM(v.cantidad * p.costo))
+        / SUM(v.cantidad * v.precio_unitario * (1 - v.descuento/100)), 2
+    ), '%') AS margen_pct
+FROM categorias c
+JOIN productos p ON c.id = p.categoria_id
+JOIN ventas    v ON p.id = v.producto_id
+GROUP BY c.id, c.nombre
+ORDER BY SUM(v.cantidad * v.precio_unitario * (1 - v.descuento/100)) - SUM(v.cantidad * p.costo) DESC;
+```
+
+### 📐 Decisiones de Ingeniería de Datos Adoptadas
+- **LEFT JOIN en reportes por categoría:** Para que categorías sin ventas aparezcan con valores nulos en lugar de desaparecer del reporte.
+- **NULLIF para evitar división entre cero:** `NULLIF(SUM(p.stock), 0)` en la tasa de conversión protege contra errores en categorías sin stock.
+- **COALESCE para NULLs en LEFT JOIN:** `COALESCE(SUM(v.cantidad), 0)` convierte NULLs en ceros cuando un producto no tiene ventas.
+- **Patrón de revenue reutilizable:** `cantidad * precio_unitario * (1 - descuento/100)` como expresión estándar para revenue neto, aplicada en los 14 reportes de forma consistente.
+
+### 📊 Reportes del Dashboard (14 + 2 bonus)
+| # | Reporte | Insight clave |
+|---|---|---|
+| R1 | Dashboard general | $7,226.58 revenue · ticket promedio $160.59 |
+| R2 | Revenue por categoría | Electrónica lidera con $3,045.17 |
+| R3 | Top 10 productos | Mouse Logitech: 17 unidades vendidas |
+| R4 | Top 10 clientes | Ana García: $1,327.90 gastado |
+| R5 | Revenue por mes | Abril: $2,105.17 — mes con mayor revenue |
+| R6 | Margen por categoría | Ropa: 50.39% margen — el más alto |
+| R7 | Revenue por país | España lidera con $2,605.10 |
+| R8 | Stock bajo el promedio | 8 productos por debajo de 73 uds. promedio |
+| R9 | Análisis de descuentos | Rango 10-19% concentra más descuento otorgado |
+| R10 | Clientes recurrentes | 5 clientes con 3+ compras |
+| R11 | Pareto | Electrónica + Deportes = 65% del revenue |
+| R12 | Tasa de conversión | Electrónica: 3.10% — mayor rotación |
+| R13 | Crecimiento mensual | Feb -44% · Mar +68% · Abr +9.23% |
+| R14 | Resumen ejecutivo | Margen global: 35.93% |
+| B1 | Ventas por día | Lunes: más ventas · Viernes: mayor revenue |
+| B2 | Productos sin ventas | Refactoring — 55 uds. en stock sin vender |
+
+### 📊 ERD del Sistema
+![ERD TechMart Analytics](erd_semana5.png)
+
+</details>
 ---
