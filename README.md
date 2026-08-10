@@ -220,4 +220,60 @@ ORDER BY SUM(v.cantidad * v.precio_unitario * (1 - v.descuento/100)) - SUM(v.can
 ![ERD TechMart Analytics](erd_semana5.png)
 
 </details>
+
+<details>
+<summary>🔍 <b>Semana 6: Proyecto GlobalMart Análisis (Subconsultas y Operadores Avanzados)</b> <i>[Haz clic para expandir detalles]</i></summary>
+
+### 📝 Descripción del Proyecto
+Sistema de análisis cruzado para **GlobalMart**, un e-commerce internacional con 5 categorías, 20 productos, 7 clientes y 16 ventas. El proyecto produce 14 reportes analíticos que no se pueden resolver con queries planas — requieren subconsultas escalares, correlacionadas, operadores avanzados y UNION para responder preguntas complejas de negocio.
+
+### 🧠 Conceptos Aplicados y Estructura
+- **Subconsultas escalares:** SELECT dentro de WHERE, SELECT y HAVING que devuelve un único valor calculado dinámicamente (AVG, MAX, MIN, SUM).
+- **Subconsultas de columna:** Devuelven múltiples filas para usar con `IN` — la lista viene de otro SELECT en lugar de valores hardcodeados.
+- **Subconsultas correlacionadas:** La subconsulta interna referencia una columna de la query externa y se ejecuta una vez por cada fila — usadas para comparar cada fila contra el promedio de su propio grupo.
+- **Subconsultas anidadas:** SELECT dentro de SELECT dentro de SELECT — calcular el promedio de totales por cliente requiere dos niveles de anidación.
+- **Operador IN / NOT IN:** Filtrado por pertenencia a lista dinámica. Trampa crítica: `NOT IN` devuelve 0 filas si la subconsulta contiene algún NULL — siempre filtrar con `WHERE columna IS NOT NULL`.
+- **Operador EXISTS / NOT EXISTS:** Verificar existencia de al menos una fila relacionada — más rápido que IN en tablas grandes y no afectado por NULL.
+- **Operadores ANY / ALL:** `> ALL` equivale a `> MAX()`, `> ANY` equivale a `> MIN()`. En producción se prefiere la versión explícita con MAX/MIN por claridad.
+- **UNION ALL vs UNION:** UNION ALL apila resultados sin verificar duplicados (rápido). UNION elimina duplicados (lento). Usar UNION ALL cuando las queries son disjuntas.
+
+### 💻 Consulta Destacada de la Semana (Clientes que compraron en TODAS las categorías)
+```sql
+-- Compara categorías distintas compradas por cada cliente vs total de categorías existentes
+SELECT cl.nombre
+FROM clientes cl
+WHERE (
+    SELECT COUNT(DISTINCT p.categoria_id)
+    FROM ventas v
+    JOIN productos p ON v.producto_id = p.id
+    WHERE v.cliente_id = cl.id
+) = (SELECT COUNT(*) FROM categorias);
+```
+
+### 📐 Decisiones de Ingeniería de Datos Adoptadas
+- **NOT EXISTS sobre NOT IN en producción:** `NOT EXISTS` es inmune a NULLs en la subconsulta y se detiene al primer match — más seguro y más rápido que `NOT IN` cuando hay riesgo de valores nulos.
+- **WHERE producto_id IS NOT NULL en NOT IN:** Cuando `NOT IN` es necesario, filtrar explícitamente los NULLs de la subconsulta interna para evitar resultados vacíos silenciosos.
+- **UNION ALL por defecto:** Las queries de las fases de UNION son disjuntas (En stock / Agotado son mutuamente excluyentes), por lo que UNION ALL es correcto y más eficiente que UNION.
+- **Paréntesis en UNION con LIMIT:** Sin paréntesis, el LIMIT se aplica al resultado combinado total. Con paréntesis, cada bloque aplica su propio LIMIT antes de unirse.
+
+### 📊 Reportes del Análisis (14 queries)
+| # | Reporte | Técnica |
+|---|---------|---------|
+| R1 | Productos más caros que el promedio global | Subconsulta escalar en WHERE |
+| R2 | Clientes que gastaron más que el promedio | Subconsulta anidada en HAVING |
+| R3 | Categorías con precio promedio > promedio global | Subconsulta escalar en HAVING |
+| R4 | Productos sin ninguna venta | NOT IN con IS NOT NULL |
+| R5 | Productos con stock > promedio de su categoría | Subconsulta correlacionada |
+| R6 | Clientes con al menos 1 compra en Electrónica | IN con subconsulta |
+| R7 | Productos con al menos 1 venta | EXISTS |
+| R8 | Clientes sin ninguna compra | NOT EXISTS |
+| R9 | Productos más caros que todos los de Ropa | > ALL |
+| R10 | Productos más caros que al menos uno de Deportes | > ANY |
+| R11 | Catálogo etiquetado por estado de stock | UNION ALL |
+| R12 | Top 3 productos más caros por categoría | UNION ALL con LIMIT por bloque |
+| R13 | Clientes que compraron en TODAS las categorías | Correlacionada con COUNT DISTINCT |
+| R14 | Productos con unidades vendidas > promedio | Subconsulta anidada en HAVING |
+
+</details>
+
 ---
