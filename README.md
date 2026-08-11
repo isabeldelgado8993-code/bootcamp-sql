@@ -275,5 +275,50 @@ WHERE (
 | R14 | Productos con unidades vendidas > promedio | Subconsulta anidada en HAVING |
 
 </details>
+<details>
+<summary>🏗️ <b>Semana 7: Proyecto TechStore Normalización (Diseño Relacional y Normalización)</b> <i>[Haz clic para expandir detalles]</i></summary>
 
+### 📝 Descripción del Proyecto
+Rediseño completo de la base de datos legacy de **TechStore**, un e-commerce que creció sin un Database Architect. El sistema original era una sola tabla desnormalizada con multi-valores, datos duplicados y dependencias transitivas en cadena. El proyecto aplica el proceso completo de normalización (1FN → 2FN → 3FN), migra los datos sin pérdida de información y demuestra la eliminación de las tres anomalías clásicas.
+
+### 🧠 Conceptos Aplicados y Estructura
+- **Redundancia y anomalías:** Identificación de anomalías de inserción, actualización y eliminación como síntomas de mal diseño relacional.
+- **Dependencias funcionales:** Notación `A → B` para razonar qué columna determina qué dato y por tanto a qué tabla pertenece.
+- **Primera Forma Normal (1FN):** Eliminación de multi-valores en columnas TEXT que almacenaban listas separadas por comas. Separación en tabla `venta_items` con PK compuesta `(venta_id, producto)`.
+- **Segunda Forma Normal (2FN):** Eliminación de dependencias parciales. `categoria` y `precio` dependían solo de `producto_id`, no de la PK compuesta completa — movidos a tabla `productos`.
+- **Tercera Forma Normal (3FN):** Eliminación de dependencias transitivas en dos cadenas: `vendedor → departamento → jefe` y `ciudad → estado → país`. Resultado: 9 tablas con cero redundancia.
+- **Migración de datos:** Carga ordenada respetando dependencias de FK — catálogos primero, personas después, transacciones al final.
+
+### 💻 Consulta Destacada de la Semana (Reporte imposible en legacy, limpio en 3FN)
+```sql
+-- Revenue por categoría — imposible en legacy (datos en columna TEXT)
+-- Limpio y mantenible en 3FN
+SELECT
+    c.nombre                                                 AS categoria,
+    SUM(vi.cantidad * vi.precio_venta * (1 - vi.descuento)) AS revenue_total
+FROM categorias c
+JOIN productos   p  ON c.categoria_id = p.categoria_id
+JOIN venta_items vi ON p.producto_id  = vi.producto_id
+GROUP BY c.categoria_id, c.nombre
+ORDER BY revenue_total DESC;
+```
+
+### 📐 Decisiones de Ingeniería de Datos Adoptadas
+- **`precio_venta` en `venta_items`:** Excepción justificada a la normalización — el precio pagado es un hecho histórico. Si el precio del producto cambia, las ventas pasadas no deben verse afectadas.
+- **3 tablas de geografía (`paises`, `estados`, `ciudades`):** La cadena transitiva `ciudad → estado → país` requiere tres niveles para eliminar completamente la redundancia geográfica.
+- **`UNIQUE (nombre, pais_id)` en estados:** Evita duplicar estados homónimos de distintos países sin necesidad de una PK sustituta adicional.
+- **Normaliza primero, desnormaliza solo con medición:** 3FN es el objetivo. La desnormalización solo se justifica con evidencia de performance, nunca por conveniencia.
+
+### 📊 Estructura de Entrega
+| Archivo | Contenido |
+|---------|-----------|
+| `analisis.md` | Violaciones de 1FN, dependencias transitivas y anomalías documentadas |
+| `01_legacy.sql` | Tabla original desnormalizada + datos |
+| `02_normalizacion_1fn.sql` | techstore_1fn — multi-valores eliminados |
+| `03_normalizacion_2fn.sql` | techstore_2fn — dependencias parciales eliminadas |
+| `04_normalizacion_3fn.sql` | techstore_3fn — esquema final (9 tablas) |
+| `05_migracion.sql` | Migración completa de legacy a 3FN |
+| `06_comparacion_queries.sql` | Demostración antes/después de las anomalías |
+
+</details>
 ---
