@@ -321,4 +321,61 @@ ORDER BY revenue_total DESC;
 | `06_comparacion_queries.sql` | Demostración antes/después de las anomalías |
 
 </details>
+<details>
+<summary>⚡ <b>Semana 8: Proyecto MegaMart (Índices y Performance)</b> <i>[Haz clic para expandir detalles]</i></summary>
+
+### 📝 Descripción del Proyecto
+Optimización completa de **MegaMart**, un e-commerce con 207.575 productos, 5.000 clientes y 20.000 ventas construido sin índices intencionalmente. El reto: pasar de queries que tardan 64 segundos a queries bajo 1 segundo en una sola jornada de trabajo aplicando índices estratégicos y reescritura de antipatrones SQL.
+
+### 🧠 Conceptos Aplicados y Estructura
+- **Full Table Scan vs índice:** Sin índice MySQL lee todas las filas (O(n)). Con B-Tree el acceso es O(log n) — de 206.430 filas examinadas a 1.
+- **Tipos de índice:** PRIMARY KEY, UNIQUE, INDEX regular, FULLTEXT e índice compuesto. Cada uno con su caso de uso específico.
+- **EXPLAIN:** Lectura de `type`, `key` y `rows` para diagnosticar planes de ejecución antes y después de optimizar.
+- **Antipatrones detectados y corregidos:** Función en WHERE (`DATE(fecha_venta)`), LIKE con % al inicio, subconsultas correlacionadas en SELECT.
+- **Índice compuesto:** Regla del prefijo izquierdo y criterio de columna más selectiva primero.
+- **FULLTEXT INDEX:** Alternativa a LIKE para búsqueda de texto en columnas largas.
+
+### 💻 Transformación más impactante (Q6: 64.750s → 0.219s)
+```sql
+-- ❌ Original: 2 subconsultas × 5.000 clientes = ~10.000 ejecuciones
+SELECT c.nombre,
+    (SELECT COUNT(*) FROM ventas v WHERE v.cliente_id = c.id) AS total_compras,
+    (SELECT SUM(cantidad * precio_unitario) FROM ventas v WHERE v.cliente_id = c.id) AS total_gastado
+FROM clientes c ORDER BY total_gastado DESC LIMIT 10;
+
+-- ✅ Optimizada: 1 sola pasada con JOIN + GROUP BY
+SELECT c.nombre,
+    COUNT(v.id) AS total_compras,
+    SUM(v.cantidad * v.precio_unitario) AS total_gastado
+FROM clientes c
+JOIN ventas v ON c.id = v.cliente_id
+GROUP BY c.id, c.nombre
+ORDER BY total_gastado DESC LIMIT 10;
+```
+
+### 📐 Decisiones de Indexación
+- **FULLTEXT sobre LIKE:** `LIKE '%laptop%'` hace full scan siempre. FULLTEXT usa su propio árbol invertido.
+- **UNIQUE en email:** No solo acelera lookups — también garantiza integridad de datos.
+- **Índice compuesto `(stock, activo)`:** Baja cardinalidad individual, alta selectividad combinada.
+- **FK siempre indexadas:** `cliente_id` y `producto_id` en ventas son columnas de JOIN críticas.
+
+### 📊 Mejoras de Performance
+
+| Query | Antes | Después | Mejora |
+|-------|-------|---------|--------|
+| Q1 — LIKE → FULLTEXT | 0.375s | 0.016s | ~23x |
+| Q3 — DATE() → rango | 0.016s | 0.000s | >16x |
+| Q6 — Subconsultas → JOIN | 64.750s | 0.219s | ~295x |
+
+### 📊 Estructura de Entrega
+| Archivo | Contenido |
+|---------|-----------|
+| `01_setup.sql` | CREATE TABLE + datos volumétricos (procedimiento en lotes) |
+| `02_queries_originales.sql` | 6 queries lentas + EXPLAIN antes |
+| `03_indices.sql` | 8 índices con justificación por comentario |
+| `04_queries_optimizadas.sql` | Q1, Q3, Q6 reescritas + EXPLAIN después |
+| `05_mediciones.md` | Tabla antes/después + diagnóstico EXPLAIN completo |
+| `06_dashboard.sql` | BONUS: 4 métricas en una query con UNION ALL |
+
+</details>
 ---
