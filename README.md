@@ -449,4 +449,82 @@ JOIN products  p  ON v.product_id  = p.id;
 | `04_views.md` | Catálogo documentado: propósito, tablas base, actualizable, uso |
 
 </details>
+<details>
+<summary>🏆 <b>Semana 10: Capstone GlobalTech RR.HH. (Procedures, Triggers, Seguridad y Proyecto Final)</b> <i>[Haz clic para expandir detalles]</i></summary>
+
+### 📝 Descripción del Proyecto
+Diseño y construcción del sistema completo de Recursos Humanos para **GlobalTech**, un proyecto production-ready que integra todo lo aprendido en el bootcamp. El sistema gestiona empleados, departamentos, proyectos, asignaciones y nómina con automatización completa, seguridad por roles y documentación profesional.
+
+### 🧠 Conceptos Aplicados y Estructura
+- **Stored Procedures:** Lógica de negocio centralizada con parámetros IN/OUT, variables `DECLARE`, control de flujo con `IF` y manejo de errores con `SIGNAL SQLSTATE`.
+- **Triggers:** Automatización de auditoría y validaciones — `BEFORE INSERT/UPDATE` para bloquear datos inválidos, `AFTER INSERT/UPDATE/DELETE` para registro automático en `audit_log`.
+- **Functions:** `fn_tenure` como función escalar reutilizable directamente en `SELECT` para calcular antigüedad de empleados.
+- **Seguridad y usuarios:** Modelo de privilegio mínimo con `CREATE USER`, `GRANT` y `REVOKE` a nivel de tabla, columna y procedure. Tres roles diferenciados: gerente, analista y aplicación.
+- **FK circular:** Resolución de la dependencia mutua `departments.manager_id ↔ employees.department_id` mediante `ALTER TABLE` después de cargar ambas tablas.
+- **Backup:** Script automatizable `backup_globaltech.sh` con `mysqldump` y timestamp, programable con cron.
+
+### 💻 Procedure Destacado de la Semana (sp_calculate_payroll)
+```sql
+-- Genera la nómina mensual para todos los activos
+-- con bonus por antigüedad y deducción estándar
+DELIMITER $$
+CREATE PROCEDURE sp_calculate_payroll(IN p_month INT, IN p_year INT)
+BEGIN
+    INSERT INTO payroll (employee_id, month, year, base_salary, bonuses, deductions, total, payment_date)
+    SELECT
+        e.id, p_month, p_year,
+        ROUND(e.salary / 12, 2),
+        ROUND(IF(YEAR(e.hire_date) <= p_year - 5, e.salary / 12 * 0.05, 0), 2),
+        ROUND(e.salary / 12 * 0.10, 2),
+        ROUND((e.salary / 12) + IF(YEAR(e.hire_date) <= p_year - 5, e.salary / 12 * 0.05, 0) - (e.salary / 12 * 0.10), 2),
+        LAST_DAY(STR_TO_DATE(CONCAT(p_year, '-', p_month, '-01'), '%Y-%m-%d'))
+    FROM employees e
+    WHERE e.is_active = TRUE
+      AND NOT EXISTS (
+          SELECT 1 FROM payroll n
+          WHERE n.employee_id = e.id AND n.month = p_month AND n.year = p_year
+      );
+    SELECT ROW_COUNT() AS employees_processed;
+END$$
+DELIMITER ;
+```
+
+### 📐 Decisiones de Ingeniería de Datos Adoptadas
+- **Soft delete en `employees.is_active`:** Nunca se borra físicamente para preservar historial de nómina y auditoría. `sp_deactivate_employee` hace la baja lógica.
+- **Trigger de auditoría en lugar de auditoría manual:** Garantiza que TODO cambio queda registrado en `audit_log`, incluso UPDATEs directos fuera de los procedures.
+- **`UNIQUE (employee_id, month, year)` en payroll:** Impide pagar dos veces el mismo periodo por error de ejecución.
+- **`NOT EXISTS` en sp_calculate_payroll:** Idempotente — ejecutar el procedure dos veces no duplica la nómina.
+- **Principio de privilegio mínimo en `app_system`:** Sin acceso a `payroll` ni `audit_log`. Si la aplicación es comprometida, el atacante no puede leer salarios ni modificar el rastro de auditoría.
+
+### 📊 Sistema completo (capstone 100 pts + 10 bonus)
+
+| Componente | Detalle |
+|---|---|
+| **6 tablas en 3FN** | departments, employees, projects, assignments, payroll, audit_log |
+| **5 Stored Procedures** | sp_hire_employee, sp_assign_project, sp_calculate_payroll, sp_department_report, sp_deactivate_employee |
+| **5 Triggers** | 3 de auditoría (INSERT/UPDATE/DELETE) + 2 de validación (salario mínimo, aumento >50%) |
+| **4 Vistas** | v_active_employees, v_projects_team, v_monthly_payroll, v_hr_dashboard |
+| **3 Usuarios** | hr_manager, hr_analyst, app_system |
+| **1 Function** | fn_tenure — antigüedad de empleado en años |
+| **Backup script** | backup_globaltech.sh automatizable con cron |
+
+### 📊 Estructura de Entrega
+| Archivo | Contenido |
+|---------|-----------|
+| `01_schema.sql` | 6 tablas en 3FN con FKs, constraints e índices |
+| `02_test_data.sql` | 20 empleados, 5 departamentos, 8 proyectos, 23 asignaciones, nómina 04/2024 |
+| `03_procedures.sql` | 5 Stored Procedures con validaciones y SIGNAL |
+| `04_triggers.sql` | 5 Triggers (3 auditoría AFTER + 2 validación BEFORE) |
+| `05_views.sql` | 4 vistas para reportes y dashboard ejecutivo |
+| `06_security.sql` | 3 usuarios MySQL con permisos diferenciados |
+| `07_indexes.sql` | EXPLAIN sobre queries del dashboard + índices adicionales |
+| `08_bonus.sql` | fn_tenure + 12 queries de dashboard ejecutivo |
+| `backup_globaltech.sh` | Script de backup automatizable con mysqldump |
+| `README.md` | Documentación completa con ERD, instalación, queries de demo |
+| `erd_diagram.png` | Diagrama ERD de las 6 tablas |
+
+### 📊 ERD del Sistema
+![ERD GlobalTech RR.HH.](entrega_semana10/erd_diagram.png)
+
+</details>
 ---
