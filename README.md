@@ -378,4 +378,75 @@ ORDER BY total_gastado DESC LIMIT 10;
 | `06_dashboard.sql` | BONUS: 4 métricas en una query con UNION ALL |
 
 </details>
+<details>
+<summary>🪟 <b>Semana 9: Proyecto TechStore Views (Vistas y Reutilización de Queries)</b> <i>[Haz clic para expandir detalles]</i></summary>
+
+### 📝 Descripción del Proyecto
+Construcción de un catálogo completo de vistas para **TechStore**, un e-commerce con 5 categorías, 18 productos, 6 clientes activos y 17 ventas. El reto: la misma query "top clientes VIP" estaba copiada en 20 lugares distintos del código, cada copia ligeramente diferente. Solución: 14 vistas que actúan como fuente única de verdad para todos los reportes, más protección de datos sensibles (costos, márgenes) mediante vistas de seguridad.
+
+### 🧠 Conceptos Aplicados y Estructura
+- **CREATE VIEW:** Encapsulación de queries complejas con nombre descriptivo para reutilización ilimitada.
+- **Vistas básicas:** Filtrado de activos, columnas calculadas (`precio * stock AS inventory_value`), ocultación de columnas sensibles (`cost` nunca expuesto).
+- **Vistas con JOIN:** Unión de 3+ tablas en una sola vista — el consumidor hace `SELECT * FROM v_full_sales` sin conocer la estructura subyacente.
+- **Vistas con GROUP BY y HAVING:** Agregaciones encapsuladas — `v_customers_stats` calcula total_spent, avg_ticket, first/last_purchase por cliente en un solo objeto reutilizable.
+- **Vista sobre vista:** `v_vip_customers` se construye sobre `v_customers_stats` — la definición de "VIP" queda en un único lugar.
+- **Vistas de seguridad:** `v_public_catalog` expone stock como YES/NO en lugar del número exacto, ocultando márgenes al equipo de marketing.
+- **WITH CHECK OPTION:** Validación integrada en la vista — impide insertar productos inactivos a través de `v_active_products_editable`.
+- **CASE WHEN en vistas:** Clasificación dinámica de productos en Budget / Mid-range / Premium / Luxury sin tocar las tablas base.
+
+### 💻 Vista Destacada de la Semana
+```sql
+-- v_full_sales: encapsula 3 JOINs y 3 cálculos en un objeto reutilizable
+-- Cualquier reporte de ventas usa esta vista — nunca toca las tablas directamente
+CREATE VIEW v_full_sales AS
+SELECT
+    v.id AS sale_id,
+    v.sale_date,
+    cl.name AS customer,
+    p.name  AS product,
+    v.quantity,
+    v.unit_price,
+    v.discount,
+    (v.quantity * v.unit_price)                          AS subtotal,
+    (v.quantity * v.unit_price * v.discount / 100)       AS discount_applied,
+    (v.quantity * v.unit_price * (1 - v.discount / 100)) AS final_total
+FROM sales v
+JOIN customers cl ON v.customer_id = cl.id
+JOIN products  p  ON v.product_id  = p.id;
+```
+
+### 📐 Decisiones de Diseño Adoptadas
+- **LEFT JOIN en vistas de métricas:** `v_products_metrics` usa LEFT JOIN con ventas para que productos sin ventas aparezcan con 0 en lugar de desaparecer del reporte.
+- **COALESCE en columnas agregadas:** `COALESCE(SUM(v.quantity), 0)` convierte NULLs en ceros cuando un producto no tiene ventas — esencial en LEFT JOINs con GROUP BY.
+- **Evitar SELECT * en vistas:** Todas las vistas especifican columnas explícitas para que cambios en las tablas base no rompan aplicaciones silenciosamente.
+- **Umbral VIP en vista dedicada:** La lógica de negocio `total_spent > 1000 AND total_purchases >= 3` vive en `v_vip_customers` — si cambia el criterio, se modifica un solo objeto.
+
+### 📊 Catálogo de Vistas (14 vistas)
+
+| Vista | Tipo | Actualizable | Uso |
+|-------|------|-------------|-----|
+| `v_active_products` | Básica | SÍ | Frontend, dropdowns |
+| `v_valued_inventory` | Básica | NO | Reporte financiero |
+| `v_active_customers` | Básica | SÍ | Email, newsletters |
+| `v_full_sales` | Básica | NO | Base de todos los reportes de ventas |
+| `v_sales_by_month` | Básica | NO | Dashboard mensual |
+| `v_products_metrics` | Avanzada | NO | Análisis de portafolio |
+| `v_customers_stats` | Avanzada | NO | Segmentación y marketing |
+| `v_vip_customers` | Avanzada | NO | Programa de fidelidad |
+| `v_low_stock_products` | Avanzada | SÍ | Alertas de reposición |
+| `v_top_products` | Avanzada | NO | Dashboard comercial |
+| `v_public_catalog` | Seguridad | NO | API pública sin márgenes |
+| `v_executive_report` | Seguridad | NO | Dashboard CEO |
+| `v_products_by_segment` | Bonus | NO | Análisis de mix de producto |
+| `v_active_products_editable` | Bonus | SÍ (CHECK OPTION) | Gestión con validación |
+
+### 📊 Estructura de Entrega
+| Archivo | Contenido |
+|---------|-----------|
+| `01_setup.sql` | CREATE TABLE + datos (4 tablas, 18 productos, 17 ventas) |
+| `02_views.sql` | 14 CREATE VIEW comentadas por fase |
+| `03_dashboard.sql` | 5 queries de dashboard usando solo vistas, sin tocar tablas |
+| `04_views.md` | Catálogo documentado: propósito, tablas base, actualizable, uso |
+
+</details>
 ---
